@@ -5,13 +5,14 @@ import re
 from collections import Counter
 import os
 
-def analyze_files(file_glob):
+def analyze_files(file_glob, limit):
     """
     Analyzes files matching a glob pattern to find duplicate words and calculate
     potential deduplication savings.
 
     Args:
         file_glob (str): A glob pattern for the input files (e.g., '*.txt').
+        limit (int): The number of top words to report on. 0 means all words.
 
     Returns:
         dict: A dictionary containing the analysis results.
@@ -74,8 +75,11 @@ def analyze_files(file_glob):
     else:
         deduplication_factor = 0
 
-    # Get the top 50 most common words
-    top_50_words = word_counter.most_common(50)
+    # Get the top words based on the limit
+    if limit > 0:
+        top_words = word_counter.most_common(limit)
+    else:
+        top_words = word_counter.most_common() # No arg returns all
 
     return {
         "processed_files": processed_files,
@@ -86,7 +90,8 @@ def analyze_files(file_glob):
         "total_bytes_with_pointers": total_bytes_with_pointers,
         "bytes_saved": bytes_saved,
         "deduplication_factor": deduplication_factor,
-        "top_50_words": top_50_words
+        "top_words": top_words,
+        "limit": limit
     }
 
 def print_report(results):
@@ -97,7 +102,7 @@ def print_report(results):
         return
 
     print("\n--- Deduplication Analysis Report ---")
-    print(f"Processed Files: {', '.join(results['processed_files'])}")
+    print(f"Number of Processed Files: {len(results['processed_files'])}")
     print("-" * 35)
     
     print("\n--- Overall Statistics ---")
@@ -114,10 +119,14 @@ def print_report(results):
     print(f"Potential Space Reduction: {reduction_percentage:.2f}%")
     print("-" * 35)
 
-    print("\n--- Top 50 Most Frequent Words ---")
+    # --- Dynamically create the title for the words report ---
+    limit = results['limit']
+    report_title = f"--- Top {limit} Most Frequent Words ---" if limit > 0 else "--- All Words by Frequency ---"
+    
+    print(f"\n{report_title}")
     print(f"{'Rank':<5} {'Word':<20} {'Frequency':<15} {'Bytes/Word':<12}")
     print(f"{'-'*4:<5} {'-'*19:<20} {'-'*14:<15} {'-'*11:<12}")
-    for i, (word, count) in enumerate(results['top_50_words'], 1):
+    for i, (word, count) in enumerate(results['top_words'], 1):
         byte_size = len(word.encode('utf-8'))
         print(f"{i:<5} {word:<20} {count:<15,} {byte_size:<12}")
     print("-" * 35)
@@ -137,10 +146,16 @@ def main():
         help="A glob pattern to select files for analysis (e.g., 'data/*.txt').\n"
              "Make sure to wrap it in quotes if it contains wildcards."
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Number of top words to display in the report. Use 0 to display all words."
+    )
     
     args = parser.parse_args()
     
-    results = analyze_files(args.file_glob)
+    results = analyze_files(args.file_glob, args.limit)
     if results:
         print_report(results)
 
