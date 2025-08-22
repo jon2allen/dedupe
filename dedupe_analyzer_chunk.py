@@ -27,23 +27,25 @@ def analyze_files(file_glob, chunk_size, limit):
     print(f"[*] Searching for files with pattern: {file_glob}\n")
 
     files_to_process = glob.glob(file_glob, recursive=True)
+    # Filter out directories from the glob results
+    files_to_process = [f for f in files_to_process if os.path.isfile(f)]
 
     if not files_to_process:
         print("[!] No files found matching the pattern. Exiting.")
         return
 
     print(f"[*] Found {len(files_to_process)} files to process.")
+    total_original_size = sum(os.path.getsize(f) for f in files_to_process)
 
     for filepath in files_to_process:
-        if not os.path.isfile(filepath):
-            continue
         try:
             with open(filepath, 'rb') as f:
                 while True:
                     chunk = f.read(chunk_size)
                     if not chunk:
                         break
-                    # Only count full-sized chunks for accurate stats
+                    # We only count full-sized chunks for accurate stats,
+                    # as partial chunks at the end of files can skew the ratio.
                     if len(chunk) == chunk_size:
                         chunk_counts[chunk] += 1
                         chunk_bytes[chunk] = len(chunk)
@@ -53,6 +55,11 @@ def analyze_files(file_glob, chunk_size, limit):
             print(f"[!] An unexpected error occurred with file {filepath}: {e}")
 
     # --- Analysis ---
+    if not chunk_counts:
+        print("\n--- Analysis Complete ---")
+        print("No full-sized chunks found to analyze. Try a smaller chunk size.")
+        return
+
     # Filter for chunks that appear more than once
     duplicate_chunks = {chunk: count for chunk, count in chunk_counts.items() if count > 1}
 
@@ -77,19 +84,25 @@ def analyze_files(file_glob, chunk_size, limit):
 
     # --- Reporting ---
     print("\n--- Deduplication Report ---")
-    total_files = len(files_to_process)
     total_chunks_processed = sum(chunk_counts.values())
     unique_chunks_count = len(chunk_counts)
     duplicate_chunks_count = len(duplicate_chunks)
     total_potential_savings = sum(chunk_savings.values())
 
+    # Calculate deduplication ratio
+    size_after_dedupe = unique_chunks_count * chunk_size
+    dedupe_ratio = total_original_size / size_after_dedupe if size_after_dedupe > 0 else 1.0
+
     print(f"\nSummary:")
-    print(f"  - Total Files Analyzed: {total_files}")
+    print(f"  - Total Files Analyzed: {len(files_to_process)}")
+    print(f"  - Total Original Size: {total_original_size / 1024:.2f} KB ({total_original_size} bytes)")
     print(f"  - Chunk Size: {chunk_size} bytes")
     print(f"  - Total Chunks Processed: {total_chunks_processed}")
     print(f"  - Unique Chunks Found: {unique_chunks_count}")
+    print(f"  - Size After Dedupe: {size_after_dedupe / 1024:.2f} KB ({size_after_dedupe} bytes)")
     print(f"  - Duplicate Chunks Found: {duplicate_chunks_count}")
     print(f"  - Total Potential Savings: {total_potential_savings / 1024:.2f} KB ({total_potential_savings} bytes)")
+    print(f"  - Deduplication Ratio: {dedupe_ratio:.2f}:1")
 
     # Determine the limit for the report
     report_limit = len(sorted_chunks) if limit == 0 else min(limit, len(sorted_chunks))
