@@ -11,7 +11,7 @@ SCRIPT_DIR="./"
 
 # Set the data directory where the compressed file is located and where the
 # analysis will be performed.
-DATA_DIR="/home/jon2allen/python/data/jon2allen/ANZ/data/"
+DATA_DIR="./data/"
 
 # Set the name of the compressed file to extract.
 TAR_FILE="ANZ535.tgz"
