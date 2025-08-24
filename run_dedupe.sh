@@ -59,15 +59,15 @@ for program in "${programs[@]}"; do
 
         # Run the deduplication tool on the input file
         echo "Running deduplication on $example_file, output to $output_file"
-        python3 "$program" --input "./data/$example_file" --output "./data/$output_file"
+        python3 "$program" --input "$example_file" --output "$output_file"
 
         # --- 3.3 Run ratio.sh on original and output files ---
         echo "Running ratio utility on original and output files"
-        ./ratio.sh "./data/$example_file" "./data/$output_file"
+        ./ratio.sh "$example_file" "$output_file"
 
         # --- 3.4 Decode the unique .dat file ---
         echo "Decoding the output file: $output_file"
-        python3 "$program" --decode "./data/$output_file"
+        python3 "$program" --decode "$output_file"
     done
     
     # --- 3.5 Delete the database file ---
